@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>ASTRUM</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      color: #e0e6ed;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    body.night-mode {
+      color: #ff2a2a;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Barra superiore */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .brand {
+      pointer-events: auto;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      letter-spacing: 3px;
+      font-weight: 700;
+    }
+
+    .brand p {
+      font-size: 10px;
+      opacity: 0.65;
+      margin-top: 2px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    button {
+      background: rgba(20, 25, 35, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: inherit;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      backdrop-filter: blur(6px);
+      cursor: pointer;
+    }
+
+    body.night-mode button {
+      background: rgba(30, 0, 0, 0.8);
+      border-color: rgba(255, 42, 42, 0.4);
+    }
+
+    button.active {
+      background: #2b5876;
+      border-color: #64b5f6;
+      color: #ffffff;
+    }
+
+    body.night-mode button.active {
+      background: #660000;
+      border-color: #ff2a2a;
+      color: #ff2a2a;
+    }
+
+    /* Mirino centrale */
+    .crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 24px;
+      height: 24px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      opacity: 0.35;
+    }
+
+    .crosshair::before, .crosshair::after {
+      content: '';
+      position: absolute;
+      background: currentColor;
+    }
+
+    .crosshair::before {
+      top: 11px;
+      left: 0;
+      width: 24px;
+      height: 1px;
+    }
+
+    .crosshair::after {
+      top: 0;
+      left: 11px;
+      width: 1px;
+      height: 24px;
+    }
+
+    /* Scheda stella selezionata */
+    .info-card {
+      position: fixed;
+      bottom: 20px;
+      left: 16px;
+      right: 16px;
+      background: rgba(12, 16, 24, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+      transform: translateY(150%);
+      transition: transform 0.25s ease;
+      z-index: 20;
+    }
+
+    body.night-mode .info-card {
+      background: rgba(18, 0, 0, 0.94);
+      border-color: rgba(255, 42, 42, 0.4);
+    }
+
+    .info-card.visible {
+      transform: translateY(0);
+    }
+
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .info-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .info-sub {
+      font-size: 11px;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .info-desc {
+      font-size: 13px;
+      line-height: 1.4;
+      opacity: 0.9;
+      margin-top: 8px;
+    }
+
+    .close-btn {
+      padding: 4px 10px;
+      font-size: 14px;
+    }
+
+    /* Pannello ricerca */
+    .search-modal {
+      position: fixed;
+      top: 64px;
+      left: 16px;
+      right: 16px;
+      background: rgba(12, 16, 24, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      padding: 12px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 55vh;
+      overflow-y: auto;
+      z-index: 30;
+    }
+
+    body.night-mode .search-modal {
+      background: rgba(20, 0, 0, 0.96);
+      border-color: rgba(255, 42, 42, 0.4);
+    }
+
+    .search-modal.open {
+      display: flex;
+    }
+
+    .search-item {
+      padding: 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="brand">
+      <h1>ASTRUM</h1>
+      <p id="coordsText">Ricerca GPS...</p>
+    </div>
+    <div class="controls">
+      <button id="sensorBtn">Bussola</button>
+      <button id="searchBtn">Cerca</button>
+      <button id="nightBtn">Rosso</button>
+    </div>
+  </div>
+
+  <div class="crosshair"></div>
+  <canvas id="skyCanvas"></canvas>
+
+  <div class="search-modal" id="searchModal"></div>
+
+  <div class="info-card" id="infoCard">
+    <div class="info-header">
+      <div>
+        <div class="info-title" id="starName">Sirio</div>
+        <div class="info-sub" id="starMeta">Cane Maggiore • 8.6 anni luce</div>
+      </div>
+      <button class="close-btn" id="closeInfo">✕</button>
+    </div>
+    <div class="info-desc" id="starDesc">La stella più luminosa del cielo notturno.</div>
+  </div>
+
+  <script>
+    // Registrazione Service Worker per uso offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    const canvas = document.getElementById('skyCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Stato vista
+    let viewAz = 180; // Sud
+    let viewAlt = 35; // Gradi sopra orizzonte
+    let fov = 65;     // Campo visivo (zoom)
+    let nightMode = false;
+    let useSensors = false;
+    let selectedStar = null;
+
+    // Coordinate default (Italia) aggiornate via GPS
+    let lat = 45.6;
+    let lon = 12.2;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        document.getElementById('coordsText').textContent = `${lat.toFixed(2)}°N ${lon.toFixed(2)}°E`;
+      }, () => {
+        document.getElementById('coordsText').textContent = `${lat.toFixed(1)}°N ${lon.toFixed(1)}°E (Default)`;
+      });
+    }
+
+    // Catalogo stelle principali (RA in ore, Dec in gradi, Mag, Nome, Costellazione, Distanza, Info)
+    const stars = [
+      { id: 'sirius', name: 'Sirio', const: 'Cane Maggiore', ra: 6.752, dec: -16.716, mag: -1.46, dist: '8.6 a.l.', desc: 'La stella più brillante del cielo notturno, una nana bianca doppia.' },
+      { id: 'betelgeuse', name: 'Betelgeuse', const: 'Orione', ra: 5.919, dec: 7.407, mag: 0.42, dist: '548 a.l.', desc: 'Supergigante rossa che segna la spalla sinistra di Orione.' },
+      { id: 'rigel', name: 'Rigel', const: 'Orione', ra: 5.242, dec: -8.201, mag: 0.13, dist: '860 a.l.', desc: 'Supergigante blu luminosissima al piede destro di Orione.' },
+      { id: 'bellatrix', name: 'Bellatrix', const: 'Orione', ra: 5.418, dec: 6.349, mag: 1.64, dist: '250 a.l.', desc: 'La "stella amazzone", spalla destra di Orione.' },
+      { id: 'alnitak', name: 'Alnitak', const: 'Orione', ra: 5.679, dec: -1.942, mag: 1.77, dist: '1260 a.l.', desc: 'Stella orientale della Cintura di Orione.' },
+      { id: 'alnilam', name: 'Alnilam', const: 'Orione', ra: 5.603, dec: -1.201, mag: 1.69, dist: '2000 a.l.', desc: 'Stella centrale della Cintura di Orione.' },
+      { id: 'mintaka', name: 'Mintaka', const: 'Orione', ra: 5.533, dec: -0.299, mag: 2.23, dist: '1200 a.l.', desc: 'Stella occidentale della Cintura di Orione, quasi sull’equatore celeste.' },
+      { id: 'saiph', name: 'Saiph', const: 'Orione', ra: 5.796, dec: -9.669, mag: 2.09, dist: '650 a.l.', desc: 'Stella al ginocchio sinistro di Orione.' },
+      { id: 'polaris', name: 'Stella Polare', const: 'Orsa Minore', ra: 2.530, dec: 89.264, mag: 1.98, dist: '433 a.l.', desc: 'Indica quasi esattamente il Polo Nord celeste.' },
+      { id: 'vega', name: 'Vega', const: 'Lira', ra: 18.615, dec: 38.783, mag: 0.03, dist: '25 a.l.', desc: 'Vertice del Triangolo Estivo, una delle stelle più vicine e luminose.' },
+      { id: 'altair', name: 'Altair', const: 'Aquila', ra: 19.846, dec: 8.868, mag: 0.77, dist: '16.7 a.l.', desc: 'Stella principale dell’Aquila, ruota su se stessa in sole 9 ore.' },
+      { id: 'deneb', name: 'Deneb', const: 'Cigno', ra: 20.690, dec: 45.280, mag: 1.25, dist: '2600 a.l.', desc: 'Coda del Cigno, una delle stelle intrinsecamente più luminose conosciute.' },
+      { id: 'aldebaran', name: 'Aldebaran', const: 'Toro', ra: 4.598, dec: 16.509, mag: 0.85, dist: '65 a.l.', desc: 'L’occhio rosso infuocato del Toro.' },
+      { id: 'capella', name: 'Capella', const: 'Auriga', ra: 5.278, dec: 45.998, mag: 0.08, dist: '43 a.l.', desc: 'La stella più brillante dell’Auriga, in realtà un sistema di 4 stelle.' },
+      { id: 'procione', name: 'Procione', const: 'Cane Minore', ra: 7.655, dec: 5.225, mag: 0.34, dist: '11.5 a.l.', desc: 'Vertice del Triangolo Invernale insieme a Sirio e Betelgeuse.' },
+      { id: 'castore', name: 'Castore', const: 'Gemelli', ra: 7.576, dec: 31.888, mag: 1.58, dist: '51 a.l.', desc: 'Uno dei due gemelli celesti, sistema sestuplo.' },
+      { id: 'polluce', name: 'Polluce', const: 'Gemelli', ra: 7.755, dec: 28.026, mag: 1.14, dist: '34 a.l.', desc: 'Gigante arancione, la più luminosa dei Gemelli.' },
+      { id: 'arturo', name: 'Arturo', const: 'Boote', ra: 14.261, dec: 19.182, mag: -0.05, dist: '37 a.l.', desc: 'La stella più luminosa dell’emisfero boreale.' },
+      { id: 'spica', name: 'Spica', const: 'Vergine', ra: 13.419, dec: -11.161, mag: 0.97, dist: '250 a.l.', desc: 'Stella binaria blu molto calda della Vergine.' },
+      { id: 'antares', name: 'Antares', const: 'Scorpione', ra: 16.490, dec: -26.432, mag: 1.06, dist: '550 a.l.', desc: 'Il "rivale di Marte", supergigante rossa cuore dello Scorpione.' },
+      // Grande Carro (Orsa Maggiore)
+      { id: 'dubhe', name: 'Dubhe', const: 'Orsa Maggiore', ra: 11.062, dec: 61.751, mag: 1.79, dist: '123 a.l.', desc: 'Puntatore verso la Stella Polare nel Grande Carro.' },
+      { id: 'merak', name: 'Merak', const: 'Orsa Maggiore', ra: 11.030, dec: 56.382, mag: 2.37, dist: '79 a.l.', desc: 'Insieme a Dubhe forma la linea che punta alla Polare.' },
+      { id: 'phecda', name: 'Phecda', const: 'Orsa Maggiore', ra: 11.897, dec: 53.694, mag: 2.44, dist: '84 a.l.', desc: 'Angolo inferiore del quadrilatero del Grande Carro.' },
+      { id: 'megrez', name: 'Megrez', const: 'Orsa Maggiore', ra: 12.257, dec: 57.032, mag: 3.31, dist: '81 a.l.', desc: 'Punto di unione tra il carro e il timone.' },
+      { id: 'alioth', name: 'Alioth', const: 'Orsa Maggiore', ra: 12.900, dec: 55.959, mag: 1.77, dist: '81 a.l.', desc: 'La stella più luminosa dell’Orsa Maggiore.' },
+      { id: 'mizar', name: 'Mizar', const: 'Orsa Maggiore', ra: 13.398, dec: 54.925, mag: 2.23, dist: '83 a.l.', desc: 'Famosa stella doppia ottica insieme alla piccola Alcor.' },
+      { id: 'alkaid', name: 'Alkaid', const: 'Orsa Maggiore', ra: 13.792, dec: 49.313, mag: 1.86, dist: '104 a.l.', desc: 'Punta del timone del Grande Carro.' },
+      // Cassiopea
+      { id: 'schedar', name: 'Schedar', const: 'Cassiopea', ra: 0.675, dec: 56.537, mag: 2.24, dist: '228 a.l.', desc: 'Stella principale della caratteristica "W" di Cassiopea.' },
+      { id: 'caph', name: 'Caph', const: 'Cassiopea', ra: 0.152, dec: 59.149, mag: 2.28, dist: '54 a.l.', desc: 'Estremità occidentale della W di Cassiopea.' },
+      { id: 'gamma_cas', name: 'Navi', const: 'Cassiopea', ra: 0.945, dec: 60.716, mag: 2.47, dist: '550 a.l.', desc: 'Stella centrale della W di Cassiopea.' },
+      { id: 'ruchbah', name: 'Ruchbah', const: 'Cassiopea', ra: 1.430, dec: 60.235, mag: 2.68, dist: '99 a.l.', desc: 'Parte orientale di Cassiopea.' },
+      { id: 'segin', name: 'Segin', const: 'Cassiopea', ra: 1.906, dec: 63.670, mag: 3.37, dist: '442 a.l.', desc: 'Estremità orientale della W di Cassiopea.' }
+    ];
+
+    // Linee delle costellazioni
+    const lines = [
+      // Orione
+      ['betelgeuse', 'bellatrix'], ['betelgeuse', 'alnitak'], ['bellatrix', 'mintaka'],
+      ['alnitak', 'alnilam'], ['alnilam', 'mintaka'], ['alnitak', 'saiph'],
+      ['mintaka', 'rigel'], ['saiph', 'rigel'],
+      // Grande Carro
+      ['dubhe', 'merak'], ['merak', 'phecda'], ['phecda', 'megrez'],
+      ['megrez', 'dubhe'], ['megrez', 'alioth'], ['alioth', 'mizar'], ['mizar', 'alkaid'],
+      // Cassiopea
+      ['caph', 'schedar'], ['schedar', 'gamma_cas'], ['gamma_cas', 'ruchbah'], ['ruchbah', 'segin'],
+      // Triangolo Estivo
+      ['vega', 'altair'], ['altair', 'deneb'], ['deneb', 'vega'],
+      // Gemelli
+      ['castore', 'polluce']
+    ];
+
+    // Stelle di sfondo casuali fisse per realismo
+    const bgStars = Array.from({ length: 450 }, () => ({
+      az: Math.random() * 360,
+      alt: Math.random() * 90,
+      size: Math.random() * 1.3 + 0.3,
+      alpha: Math.random() * 0.6 + 0.2
+    }));
+
+    // Conversione astronomica RA/Dec -> Azimut/Altitudine in tempo reale
+    function radecToAltAz(raHours, decDeg, latDeg, lonDeg) {
+      const now = new Date();
+      // Giorno Giuliano
+      const jd = (now.getTime() / 86400000) + 2440587.5;
+      const d = jd - 2451545.0;
+      // Tempo Siderale Locale (gradi)
+      let lst = (280.46061837 + 360.98564736629 * d + lonDeg) % 360;
+      if (lst < 0) lst += 360;
+
+      const raDeg = raHours * 15;
+      let ha = (lst - raDeg) * Math.PI / 180;
+      const dec = decDeg * Math.PI / 180;
+      const latRad = latDeg * Math.PI / 180;
+
+      const sinAlt = Math.sin(dec) * Math.sin(latRad) + Math.cos(dec) * Math.cos(latRad) * Math.cos(ha);
+      const alt = Math.asin(sinAlt);
+
+      const cosAz = (Math.sin(dec) - Math.sin(alt) * Math.sin(latRad)) / (Math.cos(alt) * Math.cos(latRad));
+      let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
+      if (Math.sin(ha) > 0) az = 360 - az;
+
+      return { alt: alt * 180 / Math.PI, az };
+    }
+
+    // Proiezione sferica su schermo 2D
+    function project(az, alt) {
+      const azRad = (az - viewAz) * Math.PI / 180;
+      const altRad = alt * Math.PI / 180;
+      const vAltRad = viewAlt * Math.PI / 180;
+
+      const cosC = Math.sin(vAltRad) * Math.sin(altRad) + Math.cos(vAltRad) * Math.cos(altRad) * Math.cos(azRad);
+      if (cosC <= 0.15) return null; // Dietro la camera
+
+      const scale = (width / 2) / Math.tan((fov / 2) * Math.PI / 180);
+      const x = width / 2 + scale * (Math.cos(altRad) * Math.sin(azRad)) / cosC;
+      const y = height / 2 - scale * (Math.cos(vAltRad) * Math.sin(altRad) - Math.sin(vAltRad) * Math.cos(altRad) * Math.cos(azRad)) / cosC;
+
+      return { x, y };
+    }
+
+    let projectedStars = {};
+
+    function draw() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+
+      // Stelle di sfondo
+      bgStars.forEach(s => {
+        const p = project(s.az, s.alt);
+        if (p && p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
+          ctx.fillStyle = nightMode ? `rgba(255, 30, 30, ${s.alpha * 0.7})` : `rgba(200, 220, 255, ${s.alpha})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Orizzonte e Punti Cardinali
+      ctx.strokeStyle = nightMode ? 'rgba(255, 42, 42, 0.25)' : 'rgba(100, 181, 246, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      let started = false;
+      for (let a = 0; a <= 360; a += 5) {
+        const p = project(a, 0);
+        if (p) {
+          if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+          else ctx.lineTo(p.x, p.y);
+        } else {
+          started = false;
+        }
+      }
+      ctx.stroke();
+
+      const cardinals = [
+        { label: 'N', az: 0 }, { label: 'NE', az: 45 }, { label: 'E', az: 90 },
+        { label: 'SE', az: 135 }, { label: 'S', az: 180 }, { label: 'SO', az: 225 },
+        { label: 'O', az: 270 }, { label: 'NO', az: 315 }
+      ];
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      cardinals.forEach(c => {
+        const p = project(c.az, 1.5);
+        if (p) {
+          ctx.fillStyle = nightMode ? 'rgba(255, 42, 42, 0.75)' : 'rgba(100, 181, 246, 0.8)';
+          ctx.fillText(c.label, p.x, p.y);
+        }
+      });
+
+      // Calcolo posizioni stelle catalogate
+      projectedStars = {};
+      stars.forEach(star => {
+        const pos = radecToAltAz(star.ra, star.dec, lat, lon);
+        const p = project(pos.az, pos.alt);
+        if (p) {
+          projectedStars[star.id] = { ...p, star, alt: pos.alt };
+        }
+      });
+
+      // Linee costellazioni
+      ctx.strokeStyle = nightMode ? 'rgba(255, 42, 42, 0.35)' : 'rgba(130, 177, 255, 0.32)';
+      ctx.lineWidth = 1.2;
+      lines.forEach(([id1, id2]) => {
+        const p1 = projectedStars[id1];
+        const p2 = projectedStars[id2];
+        if (p1 && p2) {
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      });
+
+      // Disegno stelle e nomi
+      Object.values(projectedStars).forEach(({ x, y, star, alt }) => {
+        if (x < -40 || x > width + 40 || y < -40 || y > height + 40) return;
+
+        const radius = Math.max(2, 5.2 - star.mag * 1.1);
+        const isBelow = alt < 0;
+
+        // Alone luminoso
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, radius * 3);
+        if (nightMode) {
+          grad.addColorStop(0, isBelow ? 'rgba(255,42,42,0.4)' : 'rgba(255,42,42,0.9)');
+          grad.addColorStop(1, 'rgba(255,0,0,0)');
+        } else {
+          grad.addColorStop(0, isBelow ? 'rgba(180,210,255,0.4)' : 'rgba(255,255,255,0.95)');
+          grad.addColorStop(1, 'rgba(100,160,255,0)');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Nucleo
+        ctx.fillStyle = nightMode ? '#ff3b3b' : '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.65, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Etichetta nome
+        if (fov < 80 || star.mag < 1.5) {
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillStyle = nightMode ? 'rgba(255, 60, 60, 0.85)' : 'rgba(224, 230, 237, 0.85)';
+          ctx.fillText(star.name, x + radius + 5, y + 3);
+        }
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    // Controlli Touch (trascinamento + pinch zoom + tap)
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+    let initialPinchDist = null;
+    let initialFov = fov;
+    let tapStart = { x: 0, y: 0, time: 0 };
+
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+        tapStart = { x: lastX, y: lastY, time: Date.now() };
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialFov = fov;
+      }
+    });
+
+    canvas.addEventListener('touchmove', e => {
+      if (e.touches.length === 1 && isDragging && !useSensors) {
+        const dx = e.touches[0].clientX - lastX;
+        const dy = e.touches[0].clientY - lastY;
+        const sensitivity = fov / width;
+        viewAz = (viewAz - dx * sensitivity + 360) % 360;
+        viewAlt = Math.max(-
